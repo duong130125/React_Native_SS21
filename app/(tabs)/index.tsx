@@ -1,98 +1,173 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import * as Notifications from "expo-notifications";
+import { useEffect, useState } from "react";
+import { Alert, StyleSheet } from "react-native";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+// Cấu hình notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [notificationPermission, setNotificationPermission] =
+    useState<Notifications.NotificationPermissionsStatus | null>(null);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
+  useEffect(() => {
+    // Kiểm tra quyền thông báo khi component mount
+    checkNotificationPermission();
+  }, []);
+
+  const checkNotificationPermission = async () => {
+    const { status } = await Notifications.getPermissionsAsync();
+    setNotificationPermission(status);
+  };
+
+  const requestNotificationPermission = async () => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    setNotificationPermission(status);
+
+    if (status !== "granted") {
+      Alert.alert(
+        "Thông báo",
+        "Bạn cần cấp quyền thông báo để sử dụng tính năng này.",
+        [{ text: "OK" }]
+      );
+      return false;
+    }
+    return true;
+  };
+
+  const sendNotificationNow = async () => {
+    try {
+      // Kiểm tra và xin quyền nếu chưa có
+      if (notificationPermission !== "granted") {
+        const hasPermission = await requestNotificationPermission();
+        if (!hasPermission) return;
+      }
+
+      // Gửi thông báo ngay lập tức (trigger = null)
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Thông báo từ Expo Go",
+          body: "Đây là thông báo được gửi ngay lập tức!",
+          sound: true,
+        },
+        trigger: null, // Gửi ngay lập tức
+      });
+
+      Alert.alert("Thành công", "Thông báo đã được gửi!", [{ text: "OK" }]);
+    } catch (error) {
+      console.error("Lỗi khi gửi thông báo:", error);
+      Alert.alert("Lỗi", "Không thể gửi thông báo. Vui lòng thử lại.", [
+        { text: "OK" },
+      ]);
+    }
+  };
+
+  return (
+    <ThemedView style={styles.container}>
+      <ThemedView style={styles.titleContainer}>
+        <ThemedText type="title">Thông báo Expo</ThemedText>
+        <ThemedText style={styles.subtitle}>
+          Demo tính năng gửi thông báo ngay lập tức
         </ThemedText>
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
+
+      <ThemedView style={styles.statusContainer}>
+        <ThemedText type="subtitle">Trạng thái quyền:</ThemedText>
+        <ThemedText style={styles.statusText}>
+          {notificationPermission === "granted"
+            ? "✅ Đã cấp quyền"
+            : notificationPermission === "denied"
+            ? "❌ Từ chối quyền"
+            : "⏳ Chưa xin quyền"}
         </ThemedText>
       </ThemedView>
-    </ParallaxScrollView>
+
+      <ThemedView style={styles.buttonContainer}>
+        <ThemedView style={styles.button} onTouchEnd={sendNotificationNow}>
+          <ThemedText style={styles.buttonText}>Gửi ngay</ThemedText>
+        </ThemedView>
+      </ThemedView>
+
+      <ThemedView style={styles.infoContainer}>
+        <ThemedText type="subtitle">Hướng dẫn:</ThemedText>
+        <ThemedText style={styles.infoText}>
+          • Nhấn nút "Gửi ngay" để gửi thông báo ngay lập tức{"\n"}• Lần đầu
+          tiên sẽ yêu cầu cấp quyền thông báo{"\n"}• Thông báo sẽ hiển thị ngay
+          sau khi nhấn nút{"\n"}• Cần sử dụng thiết bị thật để test đầy đủ tính
+          năng
+        </ThemedText>
+      </ThemedView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    alignItems: "center",
+    marginBottom: 30,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  subtitle: {
+    marginTop: 10,
+    textAlign: "center",
+    opacity: 0.7,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  statusContainer: {
+    alignItems: "center",
+    marginBottom: 30,
+    padding: 15,
+    borderRadius: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+  },
+  statusText: {
+    marginTop: 5,
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  buttonContainer: {
+    marginBottom: 30,
+  },
+  button: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 40,
+    paddingVertical: 15,
+    borderRadius: 25,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  infoContainer: {
+    padding: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    maxWidth: "90%",
+  },
+  infoText: {
+    marginTop: 10,
+    lineHeight: 22,
+    textAlign: "left",
   },
 });
